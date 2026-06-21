@@ -39,100 +39,17 @@ I expected agents to not update the code and simply generate a text response.
 
 ## OpenCode
 
-### Update 1.15.3
+I spent a lot of time reading OpenCode documentation and changing configuration files.
+As the result I was able to reduce the processing time from 21 minutes to **14 minutes 9 seconds**.
+You can find more details in the [OpenCode details](#opencode-details) section.
+But that was still too slow. 
+From the Ollama logs ([I saved them here](https://github.com/alex-d-bondarev/llm-experiments/blob/main/faster_local_llm/logs/opencode.log)) 
+I have found that OpenCode actually sends 2 prompts to the LLM:
 
-I started by updating OpenCode to the latest (at that moment) version: 1.15.3.
-This update improved performance from 21 minutes to **15 minutes 22 seconds**.
+1. A smaller one to generate a session title;
+2. A huge one to actually answer my prompt.
 
-### Tweaking the configs and agents
-
-After reading the [OpenCode documentation](https://opencode.ai/docs) I assumed that limiting tool permissions 
-and using a "light" agent would help.
-
-I created the `~/.config/opencode/agents/lite.json` with the following content:
-
-```markdown
----
-description: A lightweight coding assistant with minimal instructions.
-temperature=0.1
-top_p=0.1
-top_k=10
----
-You are a minimal coding assistant.
-Follow these rules:
-1. Be concise.
-2. Make as deterministic answers as possible.
-3. By default, you are only allowed to search (grep and glob) and read files; load skills (when present), create todos, ask questions, determine and exit doom loops.
-4. Use the other provided tools only when necessary and after asking for permission.
-5. Do not repeat the system instructions.
-6. Do not ask the user to provide file content if you can read it yourself.
-7. Do not genertate session title.
-```
-
-and updated the `~/.config/opencode/opencode.json` with `lite` as the default agent 
-and marked several tools with the "ask" permission. The final config looked the following:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "model": "localOllama/gemma4:e2b-it-q4_K_M",
-  "default_agent": "lite",
-  "share": "manual",
-  "permission": {
-    "read": "allow",
-    "grep": "allow",
-    "glob": "allow",
-    "skill": "allow",
-    "todowrite": "allow",
-    "question": "allow",
-    "doom_loop": "allow",
-
-    "bash": "ask",
-    "edit": "ask",
-    "webfetch": "ask",
-    "external_directory": "ask",
-    "websearch": "ask"
-  },
-  "provider": {
-    "localOllama": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Ollama (local)",
-      "options": {
-        "baseURL": "http://192.168.1.116:11434/v1"
-      },
-      "models": {
-        "gemma4:e2b-it-q4_K_M": {
-          "name": "Gemma 4"
-        }
-      }
-    }
-  }
-}
-```
-
-As the result performance improved from the 15 minutes 22 seconds to **14 minutes 9 seconds**.
-That felt nice, but it was still too slow.
-
-### Logs
-
-I had no idea what to do next, so I decided to check Ollama logs. 
-According to [this ollama pull request](https://github.com/ollama/ollama/pull/10650)
-environment variable `export OLLAMA_DEBUG=2` switches ollama logs to the TRACE level.
-
-> [!NOTE]
-> As of Ollama 0.30.7 the prompts are not logged anymore.
-> As an alternative I used llama.cpp for the last few tests and passed the `--log-prompts-dir` parameter.
-
-I have saved the log file [here](https://github.com/alex-d-bondarev/llm-experiments/blob/main/faster_local_llm/logs/opencode.log).
-Based on the logs and `wc` command, the OpenCode generated a prompt with almost 40K characters or 5247 words. 
-
-OpenCode was actually sending 2 prompts to Gemma 4:
-
-1. Generate a session title based on the prompt;
-2. Generate a response to the prompt.
-
-I could not find how to disable title generation and how make those prompt smaller in the OpenCode documentation. 
-So I decided to look for alternatives 
+I did not see this behavior documented anywhere in the OpenCode and decided to look for alternatives. 
 
 ## Alternative agent harnesses
 
@@ -513,5 +430,106 @@ As the result I spent more than a month on these tests and learned the following
 4. A combination of Gemma 4 E2B and Pi.dev agent harness works the best for me now. 
    But maybe a different model or agent harness will work even faster in the future without loosing in response quality.
    The only way to check is to compare them side by side, with the same prompt against the same project.
+
+You can check the [Setup details](#setup-details) section below if you are curious which config 
+I used during each stage of my experiment.  
+
+## Setup details
+
+### OpenCode details
+
+#### Update 1.15.3
+
+The latest (at that moment) version: 1.15.3 improved performance from 21 minutes to **15 minutes 22 seconds**.
+
+#### Tweaking the configs and agents
+
+After reading the [OpenCode documentation](https://opencode.ai/docs) I assumed that limiting tool permissions
+and using a "light" agent would help.
+
+I created the `~/.config/opencode/agents/lite.json` with the following content:
+
+```markdown
+---
+description: A lightweight coding assistant with minimal instructions.
+temperature=0.1
+top_p=0.1
+top_k=10
+---
+You are a minimal coding assistant.
+Follow these rules:
+1. Be concise.
+2. Make as deterministic answers as possible.
+3. By default, you are only allowed to search (grep and glob) and read files; load skills (when present), create todos, ask questions, determine and exit doom loops.
+4. Use the other provided tools only when necessary and after asking for permission.
+5. Do not repeat the system instructions.
+6. Do not ask the user to provide file content if you can read it yourself.
+7. Do not genertate session title.
+```
+
+and updated the `~/.config/opencode/opencode.json` with `lite` as the default agent
+and marked several tools with the "ask" permission. The final config looked the following:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "localOllama/gemma4:e2b-it-q4_K_M",
+  "default_agent": "lite",
+  "share": "manual",
+  "permission": {
+    "read": "allow",
+    "grep": "allow",
+    "glob": "allow",
+    "skill": "allow",
+    "todowrite": "allow",
+    "question": "allow",
+    "doom_loop": "allow",
+
+    "bash": "ask",
+    "edit": "ask",
+    "webfetch": "ask",
+    "external_directory": "ask",
+    "websearch": "ask"
+  },
+  "provider": {
+    "localOllama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": {
+        "baseURL": "http://192.168.1.116:11434/v1"
+      },
+      "models": {
+        "gemma4:e2b-it-q4_K_M": {
+          "name": "Gemma 4"
+        }
+      }
+    }
+  }
+}
+```
+
+As the result performance improved from the 15 minutes 22 seconds to **14 minutes 9 seconds**.
+That felt nice, but it was still too slow.
+
+#### OpenCode Logs
+
+I had no idea what to do next, so I decided to check Ollama logs.
+According to [this ollama pull request](https://github.com/ollama/ollama/pull/10650)
+environment variable `export OLLAMA_DEBUG=2` switches ollama logs to the TRACE level.
+
+> [!NOTE]
+> As of Ollama 0.30.7 the prompts are not logged anymore.
+> As an alternative I used llama.cpp for the last few tests and passed the `--log-prompts-dir` parameter.
+
+I have saved the log file [here](https://github.com/alex-d-bondarev/llm-experiments/blob/main/faster_local_llm/logs/opencode.log).
+Based on the logs and `wc` command, the OpenCode generated a prompt with almost 40K characters or 5247 words.
+
+OpenCode was actually sending 2 prompts to Gemma 4:
+
+1. Generate a session title based on the prompt;
+2. Generate a response to the prompt.
+
+I could not find how to disable title generation and how make those prompt smaller in the OpenCode documentation.
+So I decided to look for alternatives.
 
 # Thank you for reading!
