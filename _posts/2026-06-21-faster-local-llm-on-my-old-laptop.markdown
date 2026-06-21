@@ -1,47 +1,52 @@
 ---  
 title: Faster Local LLM on my old Laptop  
 toc: true  
-date: 2026-06-16
-last_modified_at: 2026-06-16
+date: 2026-06-21
+last_modified_at: 2026-06-21
 ---  
 
 Hi everyone!
 
 In the [previous post]({{ site.baseurl }}{% post_url 2026-05-13-local-llm-on-my-old-laptop %}) 
-I was found which LLM can run on my 2015 MacBook with 16 GB RAM fast enough. 
-It was [Gemma 4 E2B](https://ai.google.dev/gemma/docs/core/model_card_4#dense_models) 
-which processed the test prompt in **21 minutes** instead of hours, and did not fail mid-way like many others.
+I found that [Gemma 4 E2B](https://ai.google.dev/gemma/docs/core/model_card_4#dense_models) LLM can run on 
+my 2015 MacBook with 16 GB RAM within **21 minutes** and answer prompts. I tried other models as well, but they either 
+failed to run or generated responses much slower.
 
-This time I have tested multiple tools till I made it run under 5 minutes.
+I used Gemma 4 a few times after, and now I am convinced that it is suitable for code analyses and simple tasks
+I also think it cannot replace cloud based LLMs, such as Claude, ChatGPT, Gemini and others, 
+when it comes to complex projects and tasks.
 
-### Only agents are in scope
+21 minutes is still very slow. This time I have tested multiple tools and approaches till I made Gemma 4 run under 5 minutes.
+
+### Only agent harnesses are in scope
 
 It would be much faster to send prompts directly to the Ollama or to build some LLM workflow
 using [n8n](https://n8n.io/) or similar.
-However, I prefer a convenience of agents that can read my local files 
-and decide how many times to loop through LLM calls till a good enough response is generated.
+However, I prefer a convenience of agents that can read my local file 
+and decide how many times to iterate through LLM calls till a good enough response is generated.
 
 ### The test prompt
 
 I reused the following prompt against my [demo-web-app](https://github.com/alex-d-bondarev/demo-web-app) project:
 ```
 You are an experienced software architect that cares about software best practices, such as, 
-but not limited to scalability, testability, stability, maintainability and readability. 
+but not limited to scalability, testability, stability, maintainability and readability.
 I need you to check the `.github/workflows/build.yml` CI pipeline. 
 What are your impressions about it? Would you change anything?
 ```
 
-This prompt does not ask to take any action, only make the analyses.
+I expected agents to not update the code and simply generate a text response.
 
 ## OpenCode
 
 ### Update 1.15.3
 
-This update alone improved performance from 21 minutes to **15 minutes 22 seconds**.
+I started by updating OpenCode to the latest (at that moment) version: 1.15.3.
+This update improved performance from 21 minutes to **15 minutes 22 seconds**.
 
 ### Tweaking the configs and agents
 
-After reading the [OpenCode documentation](https://opencode.ai/docs) I decided that limiting tool permissions 
+After reading the [OpenCode documentation](https://opencode.ai/docs) I assumed that limiting tool permissions 
 and using a "light" agent would help.
 
 I created the `~/.config/opencode/agents/lite.json` with the following content:
@@ -65,7 +70,7 @@ Follow these rules:
 ```
 
 and updated the `~/.config/opencode/opencode.json` with `lite` as the default agent 
-and marked several tools with the "ask" permission:
+and marked several tools with the "ask" permission. The final config looked the following:
 
 ```json
 {
@@ -106,27 +111,32 @@ and marked several tools with the "ask" permission:
 ```
 
 As the result performance improved from the 15 minutes 22 seconds to **14 minutes 9 seconds**.
+That felt nice, but it was still too slow.
 
 ### Logs
 
-I had no idea what to do next, so I decided to check ollama logs. 
+I had no idea what to do next, so I decided to check Ollama logs. 
 According to [this ollama pull request](https://github.com/ollama/ollama/pull/10650)
 environment variable `export OLLAMA_DEBUG=2` switches ollama logs to the TRACE level.
 
-The generated log looked like [this](https://github.com/alex-d-bondarev/llm-experiments/blob/main/faster_local_llm/logs/opencode.log)
-with almost 40K characters or 5247 words according to `wc -w`. 
+> [!NOTE]
+> As of Ollama 0.30.7 the prompts are not logged anymore.
+> As an alternative I used llama.cpp for the last few tests and passed the `--log-prompts-dir` parameter.
 
-OpenCode was actually making 2 requests to LLM:
+I have saved the log file [here](https://github.com/alex-d-bondarev/llm-experiments/blob/main/faster_local_llm/logs/opencode.log).
+Based on the logs and `wc` command, the OpenCode generated a prompt with almost 40K characters or 5247 words. 
+
+OpenCode was actually sending 2 prompts to Gemma 4:
 
 1. Generate a session title based on the prompt;
 2. Generate a response to the prompt.
 
-I could not find how to disable title generation and how make those prompt smaller, 
-so I decided to look for alternatives 
+I could not find how to disable title generation and how make those prompt smaller in the OpenCode documentation. 
+So I decided to look for alternatives 
 
-## Alternative AI coding agents
+## Alternative agent harnesses
 
-By that moment I have only used OpenCode and never tried any alternative. 
+By that moment I have only used the OpenCode and never tried any alternative. 
 So I did a quick search and collected the following list:
 
 1. [Aider](https://aider.chat/)
@@ -144,14 +154,14 @@ So I did a quick search and collected the following list:
 
 ### Aider
 
-I have heard a lot of positive feedback about Aider, so it was on top of my list. I took the following steps:
+Aider was on top of my list since I have heard a lot of positive feedback about it. I took the following steps:
 
 1. Installed Aider as described [here](https://aider.chat/docs/llms/ollama.html)
    ```
    python -m pip install aider-install
    aider-install
    ```
-2. Added to the shell profile:
+2. Updated the shell profile:
    ```
    export OLLAMA_API_BASE=http://192.168.1.116:11434
    export OLLAMA_CONTEXT_LENGTH=16384
@@ -161,37 +171,39 @@ I have heard a lot of positive feedback about Aider, so it was on top of my list
 
 Approximately **16 minutes** later I killed the session. 
 The reason was that Aider wanted to change the file and began generating a git commit.
-That contradicted my prompt and expectations, so I stopped. 
+I did not ask for any GitHub changes, so I stopped it. 
+This experience felt uncomfortable to me, so I decided to move on.
 
 ### Conductor
 
-I've installed the [app](https://www.conductor.build/), 
-tried to connect it to ollama and realized that there is no ollama support.
+I've installed the [Conductor app](https://www.conductor.build/), 
+tried to connect it to Ollama and realized that local LLMs are not supported. 
+Ok, my list still had many options.
 
 ### OpenHands
 
 I have spent a lot of time trying to set up OpenHands, but could not make it work. I took the following steps:
 
-1. Tried to install via docker as described [here](https://docs.openhands.dev/openhands/usage/cli/installation#using-docker)
-   1. Exported `SANDBOX_VOLUMES` environment variable with path to [demo-web-app](https://github.com/alex-d-bondarev/demo-web-app) on my disk
-2. Failed to start it
-3. Install via `uv` as described [here](https://docs.openhands.dev/openhands/usage/cli/installation) 
-4. Followed the TUI setup steps
-5. Passed the prompt
-6. Received `LLMBadRequest` error
+1. Tried to install via docker as described [here](https://docs.openhands.dev/openhands/usage/cli/installation#using-docker);
+   1. Exported `SANDBOX_VOLUMES` environment variable with path to [demo-web-app](https://github.com/alex-d-bondarev/demo-web-app) on my disk;
+2. Failed to start it.
+3. Install via `uv` as described [here](https://docs.openhands.dev/openhands/usage/cli/installation); 
+4. Followed the TUI setup steps;
+5. Passed the prompt;
+6. Received `LLMBadRequest` error.
 
-The setup felt confusing and already took a lot of my time, so I decided to stop.
+The setup took a lot of my time and still felt confusing, so I decided to move on.
 
 ### Nanocoder
 
 I took the following steps:
 
-1. Installed per the [README file](https://github.com/Nano-Collective/nanocoder#quick-start
-2. Followed a very clear (no sarcasm) setup wizard
-3. Passed the prompt
+1. Installed Nanocoder per the [README file](https://github.com/Nano-Collective/nanocoder#quick-start;
+2. Followed their setup wizard;
+3. Passed the prompt;
 4. Received the result in **17 minutes 17 seconds**.
 
-That was very slow, so I decided to move on.
+That was very slow. Next.
 
 ### Pi.dev
 
@@ -216,9 +228,9 @@ That was very slow, so I decided to move on.
 5. Passed the prompt.
 6. Received the result in **approximately 10 minutes**. Pi.dev did not show response time.
 
-This coding agent was the fastest so far and I liked the experience. 
+This agent harness was the fastest so far and I liked the experience. 
 [The logs](https://github.com/alex-d-bondarev/llm-experiments/blob/main/faster_local_llm/logs/pi_dev.log) 
-also were much more compact than in OpenCode: almost 6K characters or 616 words according to `wc -w`.
+were also much more compact than in OpenCode: almost 6K characters or 616 words.
 But it was still slower than 5 minutes, so I decided to move on.
 
 ### Nanobot (v0.2.0)
@@ -236,7 +248,7 @@ But it was still slower than 5 minutes, so I decided to move on.
 4. Started like: `nanobot agent`
 5. Passed the prompt.
 
-About 2 minutes later I saw a retry message, checked ollama logs and found that error 500. Next.
+About 2 minutes later I saw a retry message, checked Ollama logs and saw an error. Next.
 
 ### Cline
 
@@ -252,9 +264,9 @@ About 2 minutes later I saw a retry message, checked ollama logs and found that 
     1. Switched to "Plan" mode via `Tab`
     2. Disabled Auto-approve via `Shift+Tab`
 6. Pasted my prompt
-7. Got error 500 in logs
+7. Got an error in Ollama logs
 
-I liked the animation of the robot head in the terminal, but error 500 is still an error. Next.
+I liked the animation of the robot head in the terminal, but error is still an error. Next.
 
 ### Oterm (0.17.2)
 
@@ -270,9 +282,9 @@ I liked the animation of the robot head in the terminal, but error 500 is still 
      }
    }
    ```
-3. Started with `oterm`
+3. Started with `oterm` command.
 4. Pasted my prompt
-5. Got response almost immediately.
+5. Got a response almost immediately.
 
 Oterm failed to open and read the file and I could not find how to overcome this. 
 I did not want to paste file contents manually, so I decided to move on.
@@ -291,7 +303,7 @@ Par Llama had the same issue as Oterm - it failed to read the file. Next.
 ### Visual Studio Code
 
 I tried to configure ollama per this [GitHub discussion](https://github.com/microsoft/vscode-discussions/discussions/2984).
-But it did not work. I also tried to follow other setup steps that I found via Google Search and neither of them worked too.
+But it did not work. I also tried to follow other setup steps that I found in other places and neither of them worked too.
 
 Meanwhile, many posts suggested to use [Continue extension](https://docs.continue.dev/customize/model-providers/top-level/ollama)
 
@@ -300,23 +312,23 @@ Meanwhile, many posts suggested to use [Continue extension](https://docs.continu
 3. Got response in **approximately 7 minutes**. Continue did not show response time.
 
 This was the fastest experience so far, but I tried VS Code, only due to my curiosity. 
-I don't want to use it as a coding agent, especially since its extensions can be used to hack devices per this
+I don't want to use it as an agent harness, especially after this
 [GitHub security report](https://github.blog/security/investigating-unauthorized-access-to-githubs-internal-repositories/)
+when VS Code extension was a reason for the hack.
 
 ### IntelliJ IDEA
 
-I was only curious to try IntelliJ as a coding agent, and did not plan to use it this way long term: 
+I was just curious to try IntelliJ as an agent harness, and did not plan to use it this way long term: 
 
 1. Activated built-in AI chat
 2. Added ollama config
 3. Pasted my prompt
 4. Got half of the response in approximately 10 minutes.
 
-IntelliJ response finished with:
+IntelliJ response finished with the following message:
 > Here is how I suggest restructuring the job for better adherence to best practices:
 
-There were no errors in ollama logs. There were no prompts in progress.
-There was just a response that looked like unfinished. That was not good enough for me, so I moved on.
+It looked unfinished. There were no errors in ollama logs. There were no prompts in progress. Next.
 
 ### Copilot CLI
 
@@ -328,11 +340,13 @@ I did not have any high hopes, especially after I failed to configure VS Code.
    COPILOT_PROVIDER_BASE_URL=http://192.168.1.116:11434/v1 COPILOT_PROVIDER_API_KEY= COPILOT_PROVIDER_WIRE_API=responses COPILOT_MODEL=gemma4:e2b-it-q4_K_M copilot
    ```
 3. Pasted my prompt
-4. Saw error 500 in ollama logs and `Request failed due to a transient API error. Retrying...` in Copilot CLI.
+4. Saw an error in Ollama logs and `Request failed due to a transient API error. Retrying...` in Copilot CLI.
+
+Okay. 
 
 ## Pi.dev - part 2
 
-At this point I tested each coding agent from the list [above](#alternative-ai-coding-agents).
+At this point I tested each agent from the list [above](#alternative-ai-coding-agents).
 None of them performed faster than 5 minutes. But I liked Pi.dev the most out of them all 
 and decided to give it another try.
 
@@ -364,36 +378,140 @@ This was slower than before, but I decided to use it differently:
 
 #### Pi Context
 
-1. Renamed and moved the `lite.md` file to `~/.pi/agent/AGENTS.md`
-2. Pi detected it as a context
-3. Prompts response time was still the same
+1. Renamed and moved the `lite.md` file to `~/.pi/agent/AGENTS.md`;
+2. Pi detected it as a "context";
+3. Prompts response time was still the same **8 minutes 15 seconds**.
 
 #### APPEND_SYSTEM
 
-1. Renamed and moved the `~/.pi/agent/AGENTS.md` file to `~/.pi/agent/APPEND_SYSTEM.md`
-2. Pi did not show anything, but I saw it in ollama logs
-3. Prompts response time was still the same
+1. Renamed and moved the `~/.pi/agent/AGENTS.md` file to `~/.pi/agent/APPEND_SYSTEM.md`;
+2. Pi did not show anything, but I saw it in ollama logs;
+3. Prompts response time was still the same **8 minutes 15 seconds**.
 
 ### Smaller context
 
 Previously I set ollama context size to 16,384 (2^14). I assumed that smaller context would improve performance.
-So I reduced it by 4096 (2^12) to 12,288... and did not get any time improvements.
+So I reduced it by 4096 (2^12) to 12,288. But it did not result in any time improvements.
 
 ## Raspberry Pi 4
 
-I have a Raspberry Pi 4 from 2019 with 4GB RAM. I assumed that a newer CPU would be better than 
+I have a Raspberry Pi 4 with 4GB RAM from 2019. I assumed that a newer CPU would suite LLMs better than 
 the one from my 2015 MacBook.
 
 Long story short, I tried several smaller LLMs on it and all of them either failed, 
 generated a poor quality response or were simply too slow.
 
 I wasted a lot of time on this stage, till I found the 
-[ollama-benchmark / llm-benchmark](https://github.com/aidatatools/ollama-benchmark) tool, 
-created a same config file for both Raspberry Pi and MacBook 
+[ollama-benchmark / llm-benchmark](https://github.com/aidatatools/ollama-benchmark) tool.
+I created a same config file for both Raspberry Pi and MacBook 
 [link](https://github.com/alex-d-bondarev/llm-experiments/blob/main/faster_local_llm/benchmark/README.md)
 and ran the test. 
 
 The result showed that my Raspberry 4 is 4.5 times slower than my old MacBook. 
 If only I ran this test earlier and did not trust my gut feeling 🫠.
+
+## Simplified prompt
+
+By this point I saw a lot of Ollama logs from different agent harnesses and decided to make a shorter prompt.
+
+All agent harnesses already tell LLM that it is a "CLI tool" or similar. 
+As a result I decided to stop telling the LLM that it is also an architect and dropped this part entirely:
+
+```text
+You are an experienced software architect that cares about software best practices, such as, 
+but not limited to scalability, testability, stability, maintainability and readability.
+```
+
+At the very least I might have been confusing the model with it. 
+
+I did not have an idea what I could drop from the second part:
+
+```text
+I need you to check the `.github/workflows/build.yml` CI pipeline. 
+What are your impressions about it? Would you change anything?
+```
+
+So instead I paraphrased it multiple times till I got the following prompt:
+
+```text
+Read @.github/workflows/build.yml file. Can you recommend any fixes? Why? Keep the answer concise. Do not edit the file.
+```
+
+This response took just 2 agent iterations and I received the result in: 1m 50s + 2m 27s = **4 minutes 17 seconds** 
+I finally beat the 5 minutes barrier!
+
+## I did not stop
+
+###  Context mode
+
+I decided to try [context-mode](https://pi.dev/packages/context-mode) pi extension, 
+since I assumed smaller context will improve performance even further:
+
+```
+pi install npm:context-mode
+```
+
+I tested the prompt and got an error in Ollama logs. Well, I should have read its description more carefully.
+It did not say that it works with Gemma LLM.
+
+### Latest ollama version
+
+I updated to the latest Ollama version 0.30.7 and observed performance improvement by almost a minute
+from 4 minutes 17 seconds to **3 minutes 21 seconds**.
+
+### RTK AI
+
+Next I installed the [rtk-ai](https://github.com/rtk-ai/rtk) extension. 
+This extension is used when the shell output can be compressed. In my case it had no impact. 
+It helps in other cases and I often use it at work, so I am still keeping it.
+
+### Plan Build Git Help
+
+I like the OpenCode approach of switching between modes that tell the agent if it can or cannot modify the files.
+The Aider experience was also still fresh in my head. 
+I wanted to limit the agent from editing files and creating pull requests unless I explicitly ask it to do that.
+That is why I created a small [pi-dev-plan-build-git-help](https://github.com/alex-d-bondarev/pi-dev-plan-build-git-help) 
+extension that simulates the Build and Plan agents and also adds a Git one on top:
+
+```text
+# start pi and type
+/mode help
+
+ Available modes — use /mode <name> to switch:
+
+   /mode plan   Read-only. Analyse and plan changes. Only PLAN.md can be edited. Git commands are blocked.
+   /mode build  Edit mode. Create and modify any files. Git commands are blocked.
+   /mode git    Git mode. Run git commands freely. File editing is blocked.
+   /mode help   This screen. Full access to pi extensions (~/.pi/agent/extensions/).
+                Create, edit, or delete any pi extension. Read-only everywhere else.
+
+ Extension source: ~/.pi/agent/extensions/modes/
+```
+
+That allowed me to remove the `Do not edit the file.` part from the prompt. But it also made it slower 
+from 3 minutes 21 seconds to **3 minutes 47 seconds**. 
+I will keep it either way since I prefer this kind of convenience. 
+
+### Latest Pi version
+
+When I saw Ollama performance improvements after the update I assumed that latest Pi (v0.78.1) would also work faster. 
+But it got slower. From the logs I have found that it behaved similar to OpenCode and tried to generate session name. 
+Unlike OpenCode I could pass session name on launch like: `pi --name "Measure prompt time"`.
+The response time was within the margin error and jumped 
+from 3 minutes 47 seconds to **3 minutes 59 seconds**.
+
+## Summary
+
+I did a lot of experiments, maybe just too many. I simply could not stop myself at time. I also procrastinated a lot. 
+As the result I spent more than a month on these tests and learned the following:
+
+1. I can run LLM prompts under 5 minutes on my laptop from 2015.
+2. OpenCode adds a lot of prompt overhead and just switching to Pi.dev helped me halve the prompt time.
+3. LLM related tools still change very often and I guess will continue doing that for at least a while.
+   For example, Ollama 0.30.7 does not show prompts in logs anymore. 
+   As an alternative I used llama.cpp for the last few tests and passed `--log-prompts-dir` parameter.
+4. A combination of Gemma 4 E2B and Pi.dev agent harness works the best for me now. 
+   But maybe a different model or agent harness will work even faster in the future without loosing in response quality.
+   The only way to check is to compare them side by side, with the same prompt against the same project.
 
 # Thank you for reading!
