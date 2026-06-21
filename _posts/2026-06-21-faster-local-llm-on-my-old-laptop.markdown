@@ -54,42 +54,24 @@ I did not see this behavior documented anywhere in the OpenCode and decided to l
 ## Alternative agent harnesses
 
 By that moment I have only used the OpenCode and never tried any alternative. 
-So I did a quick search and collected the following list:
+So I did a quick search and found the following ones:
 
-1. [Aider](https://aider.chat/)
-2. [Conductor](https://www.conductor.build/)
-3. [OpenHands](https://github.com/OpenHands/OpenHands)
-4. [Nanocoder](https://github.com/Nano-Collective/nanocoder)
-5. [Pi.dev](https://pi.dev/)
-6. [Nanobot](https://github.com/HKUDS/nanobot)
-7. [Cline](https://docs.cline.bot/cline-overview)
-8. [oterm](https://ggozad.github.io/oterm/installation/#installation)
-9. [parllama](https://github.com/paulrobello/parllama/blob/main/README.md)
-10. [Visual Studio Code](https://code.visualstudio.com/)
-11. [IntelliJ IDEA](https://www.jetbrains.com/idea/)
-12. [Copilot CLI](https://github.com/features/copilot/cli)
+* [Aider](https://aider.chat/) - it was at the top of my list, due to many people recommending it to me. 
+  But I decided to not use it since it was slower than OpenCode and created unexpected changes. 
+  You can find more details in the [Aider details](#aider-details) section. 
+* [Cline](https://docs.cline.bot/cline-overview)
+* [Conductor](https://www.conductor.build/)
+* [OpenHands](https://github.com/OpenHands/OpenHands)
+* [Nanobot](https://github.com/HKUDS/nanobot)
+* [oterm](https://ggozad.github.io/oterm/installation/#installation)
+* [parllama](https://github.com/paulrobello/parllama/blob/main/README.md)
+* [Nanocoder](https://github.com/Nano-Collective/nanocoder)
+* [Visual Studio Code](https://code.visualstudio.com/)
+* [Copilot CLI](https://github.com/features/copilot/cli)
+* [IntelliJ IDEA](https://www.jetbrains.com/idea/)
+* [Pi.dev](https://pi.dev/)
 
-### Aider
 
-Aider was on top of my list since I have heard a lot of positive feedback about it. I took the following steps:
-
-1. Installed Aider as described [here](https://aider.chat/docs/llms/ollama.html)
-   ```
-   python -m pip install aider-install
-   aider-install
-   ```
-2. Updated the shell profile:
-   ```
-   export OLLAMA_API_BASE=http://192.168.1.116:11434
-   export OLLAMA_CONTEXT_LENGTH=16384
-   ````
-3. Started aider like: `aider --model ollama_chat/gemma4:e2b-it-q4_K_M`
-4. Passed the prompt and began to wait.
-
-Approximately **16 minutes** later I killed the session. 
-The reason was that Aider wanted to change the file and began generating a git commit.
-I did not ask for any GitHub changes, so I stopped it. 
-This experience felt uncomfortable to me, so I decided to move on.
 
 ### Conductor
 
@@ -531,5 +513,27 @@ OpenCode was actually sending 2 prompts to Gemma 4:
 
 I could not find how to disable title generation and how make those prompt smaller in the OpenCode documentation.
 So I decided to look for alternatives.
+
+### Aider details
+
+I took the following steps:
+
+1. Installed Aider as described [here](https://aider.chat/docs/llms/ollama.html)
+   ```
+   python -m pip install aider-install
+   aider-install
+   ```
+2. Updated the shell profile:
+   ```
+   export OLLAMA_API_BASE=http://192.168.1.116:11434
+   export OLLAMA_CONTEXT_LENGTH=16384
+   ````
+3. Started aider like: `aider --model ollama_chat/gemma4:e2b-it-q4_K_M`
+4. Passed the prompt and began to wait.
+
+Approximately **16 minutes** later I killed the session.
+The reason was that Aider wanted to change the file and began generating a git commit.
+I did not ask for any GitHub changes, so I stopped it.
+This experience felt uncomfortable to me, so I decided to move on.
 
 # Thank you for reading!
