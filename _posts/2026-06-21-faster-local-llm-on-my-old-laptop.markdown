@@ -1,23 +1,19 @@
----  
+---
 title: Faster Local LLM on my old Laptop  
 toc: true  
 date: 2026-06-21
 last_modified_at: 2026-06-21
----  
+---
 
 Hi everyone!
 
 In the [previous post]({{ site.baseurl }}{% post_url 2026-05-13-local-llm-on-my-old-laptop %})
-I found that [Gemma 4 E2B](https://ai.google.dev/gemma/docs/core/model_card_4#dense_models) LLM can run on
-my 2015 MacBook with 16 GB RAM within **21 minutes** and answer prompts. I tried other models as well, but they either
+I found that [Gemma 4 E2B](https://ai.google.dev/gemma/docs/core/model_card_4#dense_models) LLM can run on my 2015 MacBook with 16 GB RAM within **21 minutes** 
+and produce good enough results. I tried other models as well, but they either
 failed to run or generated responses much slower.
 
-I used Gemma 4 a few times after, and now I am convinced that it is suitable for code analyses and simple tasks
-I also think it cannot replace cloud based LLMs, such as Claude, ChatGPT, Gemini and others,
-when it comes to complex projects and tasks.
-
-21 minutes is still very slow. This time I have tested multiple tools and approaches till I made Gemma 4 run under 5
-minutes.
+The 21 minutes result was still too slow. So this time I focused on improving the timing by 
+testing multiple agent harnesses with a goal to get response in 5 minutes or less.
 
 ### Only agent harnesses are in scope
 
@@ -41,71 +37,59 @@ I expected agents to not update the code and simply generate a text response.
 
 ## OpenCode
 
-I spent a lot of time reading OpenCode documentation and changing configuration files.
-As the result I was able to reduce the processing time from 21 minutes to **14 minutes 9 seconds**.
-You can find more details in the [OpenCode details](#opencode-details) section.
-But that was still too slow.
-From the Ollama
-logs ([I saved them here](https://github.com/alex-d-bondarev/llm-experiments/blob/main/faster_local_llm/logs/opencode.log))
-I have found that OpenCode actually sends 2 prompts to the LLM:
+After going through OpenCode documentation and experimenting with configuration files I found that the 
+[latest OpenCode with a few disabled tools and a more concise agent](#opencode-details) 
+can improve response time from 21 minutes to **14 minutes 9 seconds**.
+
+But that was not enough. [Ollama logs](https://github.com/alex-d-bondarev/llm-experiments/blob/main/faster_local_llm/logs/opencode.log) showed that OpenCode actually sends 2 prompts to the LLM:
 
 1. A smaller one to generate a session title;
 2. A huge one to actually answer my prompt.
 
-I did not see this behavior documented anywhere in the OpenCode and decided to look for alternatives.
+I did not see this OpenCode behavior documented anywhere and decided to look for alternatives.
 
 ## Alternative agent harnesses
 
-By that moment I have only used the OpenCode and never tried any alternative.
-So I did a quick search and found the following ones:
+By that moment I have only used the OpenCode and never tried any alternative agent harness.
+After a quick search I came up with the following list:
 
-* [Aider](https://aider.chat/) - it was at the top of my list, due to many people recommending it to me.
-  But I decided to not use it since it was slower than OpenCode and created unexpected changes.
-  You can find more details in the [Aider details](#aider-details) section.
-* [Cline](https://docs.cline.bot/cline-overview) - has a very cute robot animation. But I could not make it work
-  with Gemma 4. You can find more details in the [Cline details](#cline-details) section.
+* [Aider](https://aider.chat/) - many people recommending it to me. But I decided to not use it since it was slower 
+  than OpenCode and created unexpected changes. Details in the [Aider details](#aider-details).
+* [Cline](https://docs.cline.bot/cline-overview) - has a very cute robot animation. But I could not make it work with Gemma 4. 
+  Details in the [Cline details](#cline-details).
 * [Conductor](https://www.conductor.build/) - does not support Ollama.
 * [OpenHands](https://github.com/OpenHands/OpenHands) - the setup took a lot of time and felt confusing to me. I could
-  not make it work with Gemma 4. Maybe I misconfigured it or maybe Gemma 4 is unsupported. At some point I simply
-  gave up and decided to move on. You can find more details in the [OpenHands details](#openhands-details) section.
+  not make it work with Gemma 4. Maybe I misconfigured it or maybe Gemma 4 is unsupported. 
+  Details in the [OpenHands details](#openhands-details).
 * [Nanobot](https://github.com/HKUDS/nanobot) - it has a very cute cat logo, but I could not make it work with Gemma 4
-  either. You can find more details in the [Nanobot (v0.2.0) details](#nanobot-v020-details) section.
-* [oterm](https://ggozad.github.io/oterm/installation/#installation) - seems that it can work with Ollama, but I could
-  not make it read the file contents. My goal was to find an agent harness that can read files itself.
-  I did not find any hints in the documentation and decided to move on.
-  You can find more details in the [Oterm (0.17.2) details](#oterm-0172-details) section.
-* [parllama](https://github.com/paulrobello/parllama/blob/main/README.md) - it has a very old-school TUI and I liked
-  the way it looks. But same as oterm it could not read the file.
-  You can find more details in the [Par Llama (0.8.7) details](#par-llama-087-details) section.
-* [Nanocoder](https://github.com/Nano-Collective/nanocoder) - it worked, but it was slower than OpenCode.
-  You can find more details in the [Nanocoder details](#nanocoder-details) section.
-* [Visual Studio Code](https://code.visualstudio.com/) - does not support Ollama out of the box. Based on the oneline
-  search it used to work with Ollama in the past. I tried the "Continue" extension and got response in 7 minutes. At
-  that point it was the fastest one. I tried VS Code only out of curiosity. I don't want to use it as an agent harness,
-  especially after
-  this [GitHub security report](https://github.blog/security/investigating-unauthorized-access-to-githubs-internal-repositories/)
-  when VS Code extension was a reason for the hack. You can find more details in the
-  [Visual Studio Code details](#visual-studio-code-details) section.
-* [Copilot CLI](https://github.com/features/copilot/cli) - I did not have any high expectations after I failed to
-  make VS Code work with Ollama. Copilot CLI did not fail my expectations when I followed their documentation and
-  threw an API error. You can find more details in the [Copilot CLI details](#copilot-cli-details) section.
-* [IntelliJ IDEA](https://www.jetbrains.com/idea/) - it was very easy to set up, but finished the response mid-way.
-  I guess that the reason was `OLLAMA_CONTEXT_LENGTH=12288`. I tried IntelliJ IDEA only out of curiosity and did not
-  plan to investigate further. You can find more details in the [IntelliJ IDEA details](#intellij-idea-details) section.
+  either. Details in the [Nanobot (v0.2.0) details](#nanobot-v020-details).
+* [oterm](https://ggozad.github.io/oterm/installation/#installation) - supports Ollama, but did not read the file 
+  contents. That is one of my key requirements for agent harness, but I did not find in the oterm documentation how to 
+  fix that. Details in the [Oterm (0.17.2) details](#oterm-0172-details).
+* [parllama](https://github.com/paulrobello/parllama/blob/main/README.md) - it has a very old-school TUI and I liked the way it looks. But it also could not read the file
+  contents. Details in the [Par Llama (0.8.7) details](#par-llama-087-details).
+* [Nanocoder](https://github.com/Nano-Collective/nanocoder) - it worked, but it was slower than OpenCode. Details in the [Nanocoder details](#nanocoder-details).
+* [Visual Studio Code](https://code.visualstudio.com/) - The version I used (1.121.0) does not support Ollama out of the box. I tried the
+  [Continue extension](https://docs.continue.dev/customize/model-providers/top-level/ollama) and got response in **7 minutes**. I was simply curious and do not plan to use it especially 
+  after this [GitHub security report](https://github.blog/security/investigating-unauthorized-access-to-githubs-internal-repositories/). 
+  Details in the [Visual Studio Code details](#visual-studio-code-details).
+* [Copilot CLI](https://github.com/features/copilot/cli) - I followed their documentation and faced an API error. Details in the [Copilot CLI details](#copilot-cli-details).
+* [IntelliJ IDEA](https://www.jetbrains.com/idea/) - it was very easy to set up, but finished the response mid-way. I guess it needs begger context 
+  than `OLLAMA_CONTEXT_LENGTH=12288`. I tried IntelliJ IDEA only out of curiosity and did not
+  plan to investigate further. Details in the [IntelliJ IDEA details](#intellij-idea-details).
 * [Pi.dev](https://pi.dev/) - I simply liked it. Pi is very simple and looked fast. My initial prompt response was
-  generated within **8 minutes 15 seconds** and was faster than OpenCode.
-  You can find more details in the [Pi initial setup](#pi-initial-setup) section.
+  generated faster than OpenCode within **8 minutes 15 seconds**. Details in the [Pi initial setup](#pi-initial-setup).
 
 ## Pi.dev
 
-I decided to read Pi.dev documentation and test if I could speed it up further.
-I assumed that if a "light" agent helped improve the OpenCode performance then it would also help Pi.dev.
+I decided to read Pi.dev documentation and test if I could speed it up any further.
+I wrongly assumed that a "light" agent would improve performance same as for the OpenCode.
 But it did not help when I used [a light agent](#pi-lite-agent), [a lite context](#pi-lite-context) and 
-[append system markdown](#pi-append_system). I also tried to reduce [Ollama context size](#smaller-ollama-context)
-to 12,288, but it did not help either. I tested [my Raspberry Pi](#raspberry-pi-4) as an alternative to the old 
-MacBook and learned that it actually is 4.5 times slower than the laptop. 
+[append system markdown](#pi-append_system). Smaller [Ollama context size](#smaller-ollama-context)
+did not help either. I tested [my Raspberry Pi](#raspberry-pi-4) as an alternative to the old 
+MacBook and learned that it actually is 4.5 times slower than my laptop despite being 4 years newer. 
 
-And finally I decided to [simplify my prompt](#simplified-prompt) to
+Finally, I decided to [simplify my prompt](#simplified-prompt) to
 
 ```text
 Read @.github/workflows/build.yml file. Can you recommend any fixes? Why? Keep the answer concise. Do not edit the file.
@@ -115,31 +99,28 @@ which resulted in a similar response quality that took just **4 minutes 17 secon
 
 ## I did not stop
 
-I should have stopped at this point, but I did not. I have also tested the [pi context-mode extension](#context-mode)
+Did I say "finally"? I did not stop. I have also tested the [pi context-mode extension](#context-mode)
 that did not work with Gemma 4, updated to the [latest (0.30.7) Ollama version](#latest-ollama-version),
-installed [rtk extension](#rtk-ai), created my custom [Plan Build Git Help](#plan-build-git-help) extension that limits 
-pi from updating files and GitHub, updated [pi to the latest version](#latest-pi-version) and ended up with
+installed [rtk extension](#rtk-ai), created my custom [Plan Build Git Help](#plan-build-git-help) extension that 
+mimics Plan and Build in OpenCode, and updated [pi to the latest version](#latest-pi-version).
+
+The final-final prompt was the following:
 
 ```text
 Read @.github/workflows/build.yml file. Can you recommend any fixes? Why? Keep the answer concise.
 ```
 
-prompt that took **3 minutes 59 seconds** to generate a response
+and took  **3 minutes 59 seconds** to generate a response
 
 ## Summary
 
 I did a lot of experiments, probably too many. I simply could not stop myself at times. 
-But I also procrastinated a lot in between them. As the result I spent more than a month on these tests and learned the 
-following:
+But I also procrastinated a lot in between them. As the result I spent more than a month on these tests.
 
-1. I can run LLM prompts under 5 minutes on my old laptop from 2015.
-2. OpenCode adds a lot of overhead and just switching to Pi.dev helped me halve the prompt time.
-3. LLM related tools still change very often and I guess will continue doing that for at least a while.
-   For example, Ollama 0.30.7 does not show prompts in logs anymore.
-   As an alternative you can use llama.cpp with a `--log-prompts-dir` parameter.
-4. A combination of Gemma 4 E2B and Pi.dev agent harness works the best for me now.
-   But maybe a different model or agent harness will work even faster in the future without loosing in response quality.
-   The only way to check is to compare them side by side, with the same prompt against the same project.
+My 2015 Laptop can process LLM prompts under 5 minutes, but I will not use it as an LLM server.
+Instead, I have set up my M1 MacBook to run Ollama with Gemma 4 E2B and context size 128K. 
+I have also installed Pi.dev with [rtk-ai](https://github.com/rtk-ai/rtk) and [pi-dev-plan-build-git-help](https://github.com/alex-d-bondarev/pi-dev-plan-build-git-help), and now get LLM responses 
+in 30-90 seconds.
 
 Thank you for reading! 
 
@@ -262,7 +243,6 @@ So I decided to look for alternatives.
 Approximately **16 minutes** later I killed the session.
 The reason was that Aider wanted to change the file and began generating a git commit.
 I did not ask for any GitHub changes, so I stopped it.
-This experience felt uncomfortable to me, so I decided to move on.
 
 ### Cline details
 
@@ -359,7 +339,7 @@ But it did not work. I also tried to follow other setup steps that I found in ot
 too.
 
 Meanwhile, many posts suggested to use
-a [Continue extension](https://docs.continue.dev/customize/model-providers/top-level/ollama)
+a [Continue extension](https://docs.continue.dev/customize/model-providers/top-level/ollama):
 
 1. "Continue" was easy to set up due to user-friendly UI;
 2. I pasted my prompt;
