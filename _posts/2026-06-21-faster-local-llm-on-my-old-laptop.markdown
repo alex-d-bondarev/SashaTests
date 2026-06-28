@@ -9,7 +9,8 @@ Hi everyone!
 
 I have a video version in case you prefer that over reading:
 
-I will add a link soon....
+<iframe width="560" height="315" src="https://www.youtube.com/embed/9xXFuPvKtFM?si=RaACurKSY4hEvn4o" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<br>
 
 In the [previous post]({{ site.baseurl }}{% post_url 2026-05-13-local-llm-on-my-old-laptop %})
 I found that [Gemma 4 E2B](https://ai.google.dev/gemma/docs/core/model_card_4#dense_models) LLM can run on my 2015
